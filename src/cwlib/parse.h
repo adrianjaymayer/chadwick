@@ -101,7 +101,7 @@ typedef struct cw_parsed_event_struct {
    * 'F' for fumbled, and 'D' for dropped throw. */
   char error_types[10];
   char batted_ball_type;
-  char hit_location[20];
+  char hit_location[20], coord_x[20], coord_y[20];
 } CWEventData;
 
 void cw_event_data_copy(CWEventData *dest, CWEventData *src);

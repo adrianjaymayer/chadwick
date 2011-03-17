@@ -52,16 +52,17 @@ int fields[97] = {
 int max_field = 96;
 
 /* Extended fields to display (-x) */
-int ext_fields[63] = {
+int ext_fields[65] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0
 };
 
-int max_ext_field = 62;
+int max_ext_field = 64;
 
 char program_name[20] = "cwevent";
 
@@ -1817,6 +1818,18 @@ DECLARE_FIELDFUNC(cwevent_uncertain_play_flag)
 		 (gameiter->event->event_text[strlen(gameiter->event->event_text)-1] == '#') ? 'T' : 'F');
 }
 
+/* Extended Field 63 */
+DECLARE_FIELDFUNC(cwevent_coord_x)
+{
+  return sprintf(buffer, "%s", gameiter->event_data->coord_x);
+}
+
+/* Extended Field 64 */
+DECLARE_FIELDFUNC(cwevent_coord_y)
+{
+  return sprintf(buffer, "%s", gameiter->event_data->coord_y);
+}
+
 static field_struct ext_field_data[] = {
   /*  0 */ { cwevent_home_team_id, "HOME_TEAM_ID", "home team id" },
   /*  1 */ { cwevent_batting_team_id, "BAT_TEAM_ID", "batting team id" },
@@ -1934,7 +1947,9 @@ static field_struct ext_field_data[] = {
   /* 61 */ { cwevent_unknown_out_flag, "UNKNOWN_OUT_EXC_FL",
              "unknown fielding credit flag" },
   /* 62 */ { cwevent_uncertain_play_flag, "UNCERTAIN_PLAY_EXC_FL",
-             "uncertain play flag" }
+             "uncertain play flag" },
+  /* 63 */ { cwevent_coord_x, "COORD_X_TX", "X coordinate of play" },
+  /* 64 */ { cwevent_coord_y, "COORD_Y_TX", "Y coordinate of play" }
 };
 
 void

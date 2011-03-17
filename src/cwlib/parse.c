@@ -303,6 +303,8 @@ cw_parse_event_initialize(CWEventData *event)
   }
   event->batted_ball_type = ' ';
   strcpy(event->hit_location, "");
+  strcpy(event->coord_x, "");
+  strcpy(event->coord_y, "");
 }
 
 /*
@@ -790,6 +792,12 @@ static void cw_parse_flags(CWParserState *state, CWEventData *event)
     }
     else if (!strcmp(flag, "/L")) {
       event->batted_ball_type = 'L';
+    }
+    else if (!strncmp(flag, "/CX", 3)) {
+      strncpy(event->coord_x, flag+3, 20);
+    }
+    else if (!strncmp(flag, "/CY", 3)) {
+      strncpy(event->coord_y, flag+3, 20);
     }
     else if (strlen(flag) >= 3) {
       char traj = (flag[1] == 'B') ? flag[2] : flag[1];
