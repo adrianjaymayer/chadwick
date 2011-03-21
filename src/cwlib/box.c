@@ -799,7 +799,8 @@ cw_box_runner_stats(CWBoxscore *boxscore, CWGameIterator *gameiter)
 	pitcher->pitching->pk++;
       }
     }
-    else if (gameiter->event_data->po_flag[base]) {
+    else if (gameiter->event_data->po_flag[base] &&
+	     strchr(gameiter->event_data->play[base], 'E') == NULL) {
       CWBoxEvent *event;
       if (gameiter->event_data->play[base][0] == '2') {
 	event = cw_box_add_event(&(boxscore->po_list), 
