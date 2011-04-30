@@ -24,7 +24,7 @@
 AC_INIT
 AC_CONFIG_SRCDIR([src/cwlib/chadwick.h])
 AC_CONFIG_MACRO_DIR([m4])
-AM_INIT_AUTOMAKE(chadwick, 0.5.3-20110321-experiment)
+AM_INIT_AUTOMAKE(chadwick, 0.5.3-20110430-experiment)
 
 dnl Checks for programs.
 AC_PROG_CC
