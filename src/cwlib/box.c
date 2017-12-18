@@ -28,9 +28,6 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include <errno.h>
-#include <limits.h>
-
 #include "chadwick.h"
 
 /*
@@ -1172,18 +1169,6 @@ cw_box_iterate_game(CWBoxscore *boxscore, CWGame *game)
   free(gameiter);
 }
 
-
-int
-cw_atoi(char *s)
-{
-  char *end = NULL;
-  long temp = strtol(s, &end, 10);
-  if (end != s && errno != ERANGE && temp >= INT_MIN && temp <= INT_MAX) {
-    return (int) temp;
-  }
-  fprintf(stderr, "Warning: Invalid integer value '%s'\n", s);
-  return -1;
-}
 
 /*
  * Process a boxscore event file.  In these files, all the statistical
