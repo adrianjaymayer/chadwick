@@ -1,6 +1,6 @@
 /*
  * This file is part of Chadwick
- * Copyright (c) 2002-2020, Dr T L Turocy (ted.turocy@gmail.com)
+ * Copyright (c) 2002-2023, Dr T L Turocy (ted.turocy@gmail.com)
  *                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
  *
  * FILE: src/cwtools/cwcomment.c
@@ -35,11 +35,11 @@
 extern int ascii;
 
 /* Fields to display (-f) */
-int fields[3] = {
-  1, 1, 1,
+int fields[10] = {
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 };
 
-int max_field = 2;
+int max_field = 9;
 
 char program_name[20] = "cwcomment";
 
@@ -53,14 +53,16 @@ int print_header = 0;
 /*
  * typedef to declare the pointer-to-function type
  */
-typedef int (*field_func)(char *, CWGameIterator *, int beginning);
+typedef int (*field_func)(char *, CWGameIterator *, int beginning,
+			  CWComment *);
 
 /*
  * preprocessor directive for conveniently declaring function signature
  */
 
 #define DECLARE_FIELDFUNC(funcname) \
-  int funcname(char *buffer, CWGameIterator *gameiter, int beginning)
+  int funcname(char *buffer, CWGameIterator *gameiter, \
+               int beginning, CWComment *comment)
 
 /* Field 0 */
 DECLARE_FIELDFUNC(cwcomment_game_id)
@@ -87,33 +89,86 @@ DECLARE_FIELDFUNC(cwcomment_event_number)
 DECLARE_FIELDFUNC(cwcomment_comment)
 {
   int chars = 0;
-  CWComment *comment;
-
+  CWComment *com;
+  
   if (ascii) {
     chars += sprintf(buffer, "\"");
     buffer += 1;
   }
 
-  for (comment = 
-	 (beginning) ? gameiter->game->first_comment :
-	 gameiter->event->first_comment; 
-       comment; comment = comment->next) {
-    if (comment != gameiter->event->first_comment &&
-	comment != gameiter->game->first_comment) {
+  for (com = comment; com; com = com->next) {
+    if (com != comment) {
       chars += sprintf(buffer, " ");
       buffer += 1;
     }
-
-    chars += sprintf(buffer, "%s", comment->text);
-    buffer += strlen(comment->text);
+    chars += sprintf(buffer, "%s", com->text);
+    buffer += strlen(com->text);
+    if (com->ejection.person_id || com->umpchange.person_id) {
+      break;
+    }
   }
-
   if (ascii) {
     chars += sprintf(buffer, "\"");
     buffer += 1;
   }
 
   return chars;
+}
+
+/* Field 3 */
+DECLARE_FIELDFUNC(cwcomment_eject_person_id)
+{
+  return sprintf(buffer, "\"%s\"",
+		 (comment->ejection.person_id) ?
+		 (comment->ejection.person_id) : "");
+}
+
+/* Field 4 */
+DECLARE_FIELDFUNC(cwcomment_eject_person_role_cd)
+{
+  return sprintf(buffer, "\"%s\"",
+		 (comment->ejection.person_role) ?
+		 (comment->ejection.person_role) : "");
+}
+
+/* Field 5 */
+DECLARE_FIELDFUNC(cwcomment_eject_umpire_id)
+{
+  return sprintf(buffer, "\"%s\"",
+		 (comment->ejection.umpire_id) ?
+		 (comment->ejection.umpire_id) : "");
+}
+
+/* Field 6 */
+DECLARE_FIELDFUNC(cwcomment_eject_reason)
+{
+  return sprintf(buffer, "\"%s\"",
+		 (comment->ejection.reason) ?
+		 (comment->ejection.reason) : "");
+}
+
+/* Field 7 */
+DECLARE_FIELDFUNC(cwcomment_umpchange_inning)
+{
+  return sprintf(buffer, "%s",
+		 (comment->umpchange.inning) ?
+		 (comment->umpchange.inning) : "");
+}
+
+/* Field 8 */
+DECLARE_FIELDFUNC(cwcomment_umpchange_position)
+{
+  return sprintf(buffer, "\"%s\"",
+		 (comment->umpchange.position) ?
+		 (comment->umpchange.position) : "");
+}
+
+/* Field 9 */
+DECLARE_FIELDFUNC(cwcomment_umpchange_person_id)
+{
+  return sprintf(buffer, "\"%s\"",
+		 (comment->umpchange.person_id) ?
+		 (comment->umpchange.person_id) : "");
 }
 
 /*
@@ -129,7 +184,20 @@ typedef struct field_struct {
 static field_struct field_data[] = {
   /* 0 */ { cwcomment_game_id, "GAME_ID", "game id" },
   /* 1 */ { cwcomment_event_number, "EVENT_ID", "event num" },
-  /* 2 */ { cwcomment_comment, "COMMENT_TX", "comment text" }
+  /* 2 */ { cwcomment_comment, "COMMENT_TX", "comment text" },
+  /* 3 */ { cwcomment_eject_person_id, "EJECT_PERSON_ID",
+	    "ID of person ejected" },
+  /* 4 */ { cwcomment_eject_person_role_cd, "EJECT_PERSON_ROLE_CD",
+	    "role of person ejected" },
+  /* 5 */ { cwcomment_eject_umpire_id, "EJECT_UMPIRE_ID",
+	    "ID of ejecting umpire" },
+  /* 6 */ { cwcomment_eject_reason, "EJECT_REASON_TX", "reason for ejection" },
+  /* 7 */ { cwcomment_umpchange_inning, "UMPCHANGE_INN_CT",
+	    "inning of umpire change" },
+  /* 8 */ { cwcomment_umpchange_position, "UMPCHANGE_POS_CD",
+	    "position umpire assumed" },
+  /* 9 */ { cwcomment_umpchange_person_id, "UMPCHANGE_PERSON_ID",
+	    "ID of umpire assuming position" }
 };
 
 void
@@ -139,51 +207,72 @@ cwcomment_process_game(CWGame *game, CWRoster *visitors, CWRoster *home)
   char output_line[4096];
   int i, comma;
   CWGameIterator *gameiter = cw_gameiter_create(game);
+  CWComment *comment = NULL;
 
   if (gameiter->game->first_comment != NULL) {
-    comma = 0;
-    strcpy(output_line, "");
-    buf = output_line;
-    for (i = 0; i < 3; i++) {
-      if (fields[i]) {
-	if (ascii && comma) {
-	  *(buf++) = ',';
+    comment = gameiter->game->first_comment;
+    while (comment) {
+      comma = 0;
+      strcpy(output_line, "");
+      buf = output_line;
+      for (i = 0; i <= max_field; i++) {
+	if (fields[i]) {
+	  if (ascii && comma) {
+	    *(buf++) = ',';
+	  }
+	  else {
+	    comma = 1;
+	  }
+	  buf += (*field_data[i].f)(buf, gameiter, 1, comment);
 	}
-	else {
-	  comma = 1;
+      }
+      printf("%s\n", output_line); 
+      if (comment->ejection.person_id || comment->umpchange.person_id) {
+	comment = comment->next;
+      }
+      else {
+	while (comment) {
+	  comment = comment->next;
+	  if (comment &&
+	      (comment->ejection.person_id || comment->umpchange.person_id)) {
+	    break;
+	  }
 	}
-	buf += (*field_data[i].f)(buf, gameiter, 1);
       }
     }
-
-    printf("%s", output_line);
-    printf("\n");
   }
 
   while (gameiter->event != NULL) {
-    if (gameiter->event->first_comment == NULL) {
-      cw_gameiter_next(gameiter);
-      continue;
-    }
-
-    comma = 0;
-    strcpy(output_line, "");
-    buf = output_line;
-    for (i = 0; i < 3; i++) {
-      if (fields[i]) {
-	if (ascii && comma) {
-	  *(buf++) = ',';
+    comment = gameiter->event->first_comment;
+    while (comment) {
+      comma = 0;
+      strcpy(output_line, "");
+      buf = output_line;
+      for (i = 0; i <= max_field; i++) {
+	if (fields[i]) {
+	  if (ascii && comma) {
+	    *(buf++) = ',';
+	  }
+	  else {
+	    comma = 1;
+	  }
+	  buf += (*field_data[i].f)(buf, gameiter, 0, comment);
 	}
-	else {
-	  comma = 1;
+      }
+      printf("%s\n", output_line);
+      if (comment->ejection.person_id || comment->umpchange.person_id) {
+	comment = comment->next;
+      }
+      else {
+	while (comment) {
+	  comment = comment->next;
+	  if (comment &&
+	      (comment->ejection.person_id || comment->umpchange.person_id)) {
+	    break;
+	  }
 	}
-	buf += (*field_data[i].f)(buf, gameiter, 0);
       }
     }
-
-    printf("%s", output_line);
-    printf("\n");
-
     cw_gameiter_next(gameiter);
   }
   
@@ -209,7 +298,7 @@ cwcomment_print_help(void)
   fprintf(stderr, "  -ft       generate Fortran format files\n");
   fprintf(stderr, "  -m        use master player file instead of local roster files\n");
   fprintf(stderr, "  -f flist  give list of fields to output\n");
-  fprintf(stderr, "              Default is 0-2.\n");
+  fprintf(stderr, "              Default is 0-9.\n");
   fprintf(stderr, "  -d        print list of field numbers and descriptions\n\n");
   fprintf(stderr, "  -q        operate quietly; do not output progress messages\n");
   fprintf(stderr, "  -n        print field names in first row of output\n\n");
@@ -244,7 +333,7 @@ cwcomment_print_welcome_message(char *argv0)
   fprintf(stderr,
 	  "\nChadwick comment extractor, version " VERSION); 
   fprintf(stderr, "\n  Type '%s -h' for help.\n", argv0);
-  fprintf(stderr, "Copyright (c) 2002-2020\nDr T L Turocy, Chadwick Baseball Bureau (ted.turocy@gmail.com)\n");
+  fprintf(stderr, "Copyright (c) 2002-2023\nDr T L Turocy, Chadwick Baseball Bureau (ted.turocy@gmail.com)\n");
   fprintf(stderr, "This is free software, "
 	  "subject to the terms of the GNU GPL license.\n\n");
 }
@@ -294,7 +383,6 @@ extern char year[5];
 extern char first_date[5];
 extern char last_date[5];
 extern char game_id[20];
-extern int ascii;
 extern int quiet;
 
 extern void

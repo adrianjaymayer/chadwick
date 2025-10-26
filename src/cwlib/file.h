@@ -1,6 +1,6 @@
 /*
  * This file is part of Chadwick
- * Copyright (c) 2002-2020, Dr T L Turocy (ted.turocy@gmail.com)
+ * Copyright (c) 2002-2023, Dr T L Turocy (ted.turocy@gmail.com)
  *                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
  *
  * FILE: src/cwlib/file.h
@@ -33,8 +33,10 @@ char *cw_strtok(char *strToken);
 /*
  * A replacement for C atoi(), which does validity checking and returns
  * -1 as the "null" value for invalid inputs.
+ * If 'msg' is specified and not null, it is used as the format string
+ * to print a warning message.
  */
-int cw_atoi(char *s);
+int cw_atoi(char *s, char *msg);
 
 /*
  * Searches for the game 'game_id' in 'file'; sets the file pointer to

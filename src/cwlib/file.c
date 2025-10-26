@@ -1,6 +1,6 @@
 /*
  * This file is part of Chadwick
- * Copyright (c) 2002-2020, Dr T L Turocy (ted.turocy@gmail.com)
+ * Copyright (c) 2002-2023, Dr T L Turocy (ted.turocy@gmail.com)
  *                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
  *
  * FILE: src/cwlib/file.c
@@ -134,14 +134,19 @@ char *cw_strtok(char *strToken)
  * for invalid values.
  */
 int
-cw_atoi(char *s)
+cw_atoi(char *s, char *msg)
 {
   char *end = NULL;
   long temp = strtol(s, &end, 10);
   if (end != s && errno != ERANGE && temp >= INT_MIN && temp <= INT_MAX) {
     return (int) temp;
   }
-  fprintf(stderr, "Warning: Invalid integer value '%s'\n", s);
+  if (msg != NULL) {
+    fprintf(stderr, msg, s);
+  }
+  else {
+    fprintf(stderr, "WARNING: Invalid integer value '%s'\n", s);
+  }
   return -1;
 }
 

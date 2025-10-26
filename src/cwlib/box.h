@@ -1,6 +1,6 @@
 /*
  * This file is part of Chadwick
- * Copyright (c) 2002-2020, Dr T L Turocy (ted.turocy@gmail.com)
+ * Copyright (c) 2002-2023, Dr T L Turocy (ted.turocy@gmail.com)
  *                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
  *                          Sean Forman, Sports Reference LLC
  *                          XML Team Solutions, Inc.
@@ -149,7 +149,8 @@ CWBoxPitcher *cw_box_get_starting_pitcher(CWBoxscore *boxscore, int team);
 /*
  * Find the player entry for player with ID player_id
  */
-CWBoxPlayer *cw_box_find_player(CWBoxscore *boxscore, char *player_id);
+CWBoxPlayer *cw_box_find_player(CWBoxscore *boxscore, char *player_id,
+				int batter);
 
 /*
  * Find the pitching entry for player with ID player_id

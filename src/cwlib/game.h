@@ -1,6 +1,6 @@
 /*
  * This file is part of Chadwick
- * Copyright (c) 2002-2020, Dr T L Turocy (ted.turocy@gmail.com)
+ * Copyright (c) 2002-2023, Dr T L Turocy (ted.turocy@gmail.com)
  *                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
  *
  * FILE: src/cwlib/game.h
@@ -55,6 +55,12 @@ typedef struct cw_appearance_struct {
 
 typedef struct cw_comment_struct {
   char *text;
+  struct {
+    char *person_id, *person_role, *umpire_id, *reason;
+  } ejection;
+  struct {
+    char *inning, *position, *person_id;
+  } umpchange;
   struct cw_comment_struct *prev, *next;
 } CWComment;
 
@@ -68,6 +74,8 @@ typedef struct cw_event_struct {
   /* These are used for radj */
   int auto_base;
   char *auto_runner_id;
+  /* These are used for presadj */
+  char *presadj[4];
   CWAppearance *first_sub, *last_sub;
   CWComment *first_comment, *last_comment;
   struct cw_event_struct *prev, *next;
@@ -223,6 +231,30 @@ int cw_game_lint(CWGame *game);
  * Add a comment to the event
  */
 void cw_event_comment_append(CWEvent *event, char *comment);
+
+/*
+ * Pitch outcome classification functions:
+ * Returns 1 if pitch belongs to the category and 0 otherwise.
+ */
+int cw_pitch_thrown(char c);
+int cw_pitch_ball_thrown(char c);
+int cw_pitch_ball_called(char c);
+int cw_pitch_ball_intentional(char c);
+int cw_pitch_ball_pitchout(char c);
+int cw_pitch_ball_hit_batter(char c);
+int cw_pitch_ball_other(char c);
+int cw_pitch_strike_thrown(char c);
+int cw_pitch_strike_called(char c);
+int cw_pitch_strike_swinging(char c);
+int cw_pitch_strike_foul(char c);
+int cw_pitch_strike_inplay(char c);
+int cw_pitch_strike_other(char c);
+
+/*
+ * Count the number of pitches in a pitch string matching the criterion.
+ * The criterion function should return 1 if a pitch matches the criterion and 0 otherwise.
+ */
+int cw_pitch_count_pitches(char *pitches, int (*criterion)(char));
 
 #endif  /* CW_GAME_H */
 

@@ -1,6 +1,6 @@
 /*
  * This file is part of Chadwick
- * Copyright (c) 2002-2020, Dr T L Turocy (ted.turocy@gmail.com)
+ * Copyright (c) 2002-2023, Dr T L Turocy (ted.turocy@gmail.com)
  *                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
  *
  * FILE: src/cwlib/roster.c
@@ -293,7 +293,7 @@ cw_roster_batting_hand(CWRoster *roster, char *player_id)
 
   for (player = roster->first_player; player; player = player->next) {
     if (!strcmp(player->player_id, player_id)) {
-      return player->bats;
+      return (player->bats != '\0' && player->bats != ' ') ? player->bats : '?';
     }
   }
 
@@ -311,7 +311,7 @@ cw_roster_throwing_hand(CWRoster *roster, char *player_id)
 
   for (player = roster->first_player; player; player = player->next) {
     if (!strcmp(player->player_id, player_id)) {
-      return player->throws;
+      return (player->throws != '\0' && player->throws != ' ') ? player->throws : '?';
     }
   }
 

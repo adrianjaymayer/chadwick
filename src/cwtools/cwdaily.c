@@ -1,6 +1,6 @@
 /*
  * This file is part of Chadwick
- * Copyright (c) 2002-2020, Dr T L Turocy (ted.turocy@gmail.com)
+ * Copyright (c) 2002-2023, Dr T L Turocy (ted.turocy@gmail.com)
  *                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
  *
  * FILE: src/cwtools/cwdaily.c
@@ -122,7 +122,7 @@ DECLARE_FIELDFUNC(cwdaily_number)
   char *tmp;
   return sprintf(buffer, (ascii) ? "%d" : "%5d",
 		 (tmp = cw_game_info_lookup(gameiter->game, "number")) ?
-		 cw_atoi(tmp) : 0);
+		 cw_atoi(tmp, NULL) : 0);
 }
 
 /* Field 3 */
@@ -318,7 +318,7 @@ DECLARE_FIELDFUNC(cwdaily_P_TB)
 	} 
 	else { 
 	  stat += pitcher->pitching->h + pitcher->pitching->b2 +
-    	          2*pitcher->pitching->b3 + 3*pitcher->pitching->hr;; 
+    	          2*pitcher->pitching->b3 + 3*pitcher->pitching->hr;
 	} 
       } 
       pitcher = pitcher->prev; 
@@ -694,7 +694,7 @@ void cwdaily_process_game(CWGame *game, CWRoster *visitors, CWRoster *home)
 {
   char *buf;
   char output_line[4096];
-  int i, j, t, seq, comma = 0;
+  int i, j, t, seq, comma;
   CWGameIterator *gameiter = cw_gameiter_create(game);
   CWBoxscore *box = cw_box_create(game);
   CWBoxPlayer *player;
@@ -752,9 +752,7 @@ void cwdaily_print_help(void)
   fprintf(stderr, "  -a        generate Ascii-delimited format files (default)\n");
   fprintf(stderr, "  -ft       generate Fortran format files\n");
   fprintf(stderr, "  -f flist  give list of fields to output\n");
-  fprintf(stderr, "              Default is 0-83\n");
-  fprintf(stderr, "  -x flist  give list of extended fields to output\n");
-  fprintf(stderr, "              Default is none\n");
+  fprintf(stderr, "              Default is 0-153\n");
   fprintf(stderr, "  -d        print list of field numbers and descriptions\n");
   fprintf(stderr, "  -q        operate quietly; do not output progress messages\n");
   fprintf(stderr, "  -n        print field names in first row of output\n\n");
@@ -790,7 +788,7 @@ cwdaily_print_welcome_message(char *argv0)
   fprintf(stderr, 
 	  "\nChadwick player game-by-game generator, version " VERSION);
   fprintf(stderr, "\n  Type '%s -h' for help.\n", argv0);
-  fprintf(stderr, "Copyright (c) 2002-2020\nDr T L Turocy, Chadwick Baseball Bureau (ted.turocy@gmail.com)\n");
+  fprintf(stderr, "Copyright (c) 2002-2023\nDr T L Turocy, Chadwick Baseball Bureau (ted.turocy@gmail.com)\n");
   fprintf(stderr, "This is free software, "
 	  "subject to the terms of the GNU GPL license.\n\n");
 }
@@ -840,7 +838,6 @@ extern char year[5];
 extern char first_date[5];
 extern char last_date[5];
 extern char game_id[20];
-extern int ascii;
 extern int quiet;
 
 extern void

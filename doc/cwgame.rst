@@ -289,6 +289,9 @@ The following table gives the contents of each of the 84 fields
    * - 83
      - Home finishing pitcher
      - ``HOME_FINISH_PIT_ID``
+   * - 84
+     - Game type
+     - ``GAME_TYPE_TX``
 
 .. list-table:: cwgame extended field numbers
    :header-rows: 1
@@ -582,6 +585,12 @@ The following table gives the contents of each of the 84 fields
    * - 94
      - acquisition information
      - ``ACQ_INFO_TX``
+   * - 95
+     - scheduled length of game in innings
+     - ``SCHED_INN_CT``
+   * - 96
+     - :ref:`tiebreaker rule type in use <cwtools.cwgame.tiebreak>`
+     - ``TIEBREAK_CD``
 
 .. _cwtools.cwgame.howscored:
 
@@ -767,4 +776,15 @@ Numeric codes for sky field.
      - night
    * - 5
      - dome
+
+
+.. _cwtools.cwgame.tiebreak:
+
+Tiebreaker rule type in use (extended field 96)
+-----------------------------------------------
+
+This field indicates games in which an extra-innings tiebreaker
+rule was in use.  The only valid value for this field currently
+is `2`, indicating that extra innings began with a runner on
+second base.
 

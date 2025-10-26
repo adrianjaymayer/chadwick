@@ -1,6 +1,6 @@
 #
 # This file is part of Chadwick
-# Copyright (c) 2002-2020, Dr T L Turocy (ted.turocy@gmail.com)
+# Copyright (c) 2002-2022, Dr T L Turocy (ted.turocy@gmail.com)
 #                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
 #
 # FILE: configure.ac
@@ -22,19 +22,18 @@
 #
 
 
-AC_INIT([chadwick], [0.8.1])
+AC_INIT([chadwick],[0.10.0])
 AC_CONFIG_SRCDIR([src/cwlib/chadwick.h])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
 
 dnl Checks for programs.
 AC_PROG_CC
-AC_PROG_LIBTOOL
+LT_INIT
 
 dnl Checks for libraries.
 
 dnl Checks for header files.
-AC_HEADER_STDC
 AC_CHECK_HEADER([dir.h],
                 [AC_DEFINE(HAVE_DIR_H)])
 
@@ -49,8 +48,5 @@ AC_CHECK_DECL([_timezone],
 
 dnl Checks for library functions.
 
-AC_CONFIG_FILES([src/cwlib/Makefile \
-          src/cwtools/Makefile \
-          src/Makefile \
-  	  Makefile])
+AC_CONFIG_FILES([src/cwlib/Makefile src/cwtools/Makefile src/Makefile Makefile])
 AC_OUTPUT

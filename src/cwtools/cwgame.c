@@ -1,6 +1,6 @@
 /*
  * This file is part of Chadwick
- * Copyright (c) 2002-2020, Dr T L Turocy (ted.turocy@gmail.com)
+ * Copyright (c) 2002-2023, Dr T L Turocy (ted.turocy@gmail.com)
  *                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
  *                          Sean Forman, Sports Reference LLC
  *                          XML Team Solutions, Inc.
@@ -37,7 +37,7 @@
 extern int ascii;
 
 /* Fields to display (-f) */
-int fields[84] = {
+int fields[85] = {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -46,13 +46,13 @@ int fields[84] = {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1
+  1, 1, 1, 1, 0
 };
 
-int max_field = 83;
+int max_field = 84;
 
 /* Extended fields to display (-x) */
-int ext_fields[95] = {
+int ext_fields[97] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -60,15 +60,27 @@ int ext_fields[95] = {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0
+  0, 0, 0, 0, 0, 0, 0, 0
 };
 
-int max_ext_field = 94;
+int max_ext_field = 96;
 
 char program_name[20] = "cwgame";
 
 int print_header = 0;
 
+/* Auxiliary function: negative numbers in the boxscore structure
+ * correspond to nulls, which should be rendered as blanks in output.
+ */
+int cwgame_print_integer_or_null(char *buffer, int value)
+{
+  if (value >= 0) {
+    return sprintf(buffer, "%d", value);
+  }
+  else {
+    return sprintf(buffer, "%s", "");
+  }
+}
 
 /*************************************************************************
  * Utility routines to compute day of week
@@ -208,7 +220,7 @@ DECLARE_FIELDFUNC(cwgame_number)
   char *tmp;
   return sprintf(buffer, (ascii) ? "%d" : "%5d",
 		 (tmp = cw_game_info_lookup(gameiter->game, "number")) ?
-		 cw_atoi(tmp) : 0);
+		 cw_atoi(tmp, NULL) : 0);
 }
 
 /* Field 3 */
@@ -298,17 +310,17 @@ DECLARE_FIELDFUNC(cwgame_site)
 /* Field 10 */
 DECLARE_FIELDFUNC(cwgame_visitors_pitcher)
 {
-  return sprintf(buffer, (ascii) ? "\"%s\"" : "%-8s",
-		 cw_game_starter_find_by_position(gameiter->game,
-						  0, 1)->player_id);
+  CWAppearance *app = cw_game_starter_find_by_position(gameiter->game, 0, 1);
+  char *player_id = (app) ? app->player_id : "";
+  return sprintf(buffer, (ascii) ? "\"%s\"" : "%-8s", player_id);
 }
 
 /* Field 11 */
 DECLARE_FIELDFUNC(cwgame_home_pitcher)
 {
-  return sprintf(buffer, (ascii) ? "\"%s\"" : "%-8s",
-		 cw_game_starter_find_by_position(gameiter->game,
-						  1, 1)->player_id);
+  CWAppearance *app = cw_game_starter_find_by_position(gameiter->game, 1, 1);
+  char *player_id = (app) ? app->player_id : "";
+  return sprintf(buffer, (ascii) ? "\"%s\"" : "%-8s", player_id);
 }
 
 /* Field 12 */
@@ -368,10 +380,10 @@ DECLARE_FIELDFUNC(cwgame_umpire_rf)
 /* Field 18 */
 DECLARE_FIELDFUNC(cwgame_attendance)
 {
-  char *tmp;
-  return sprintf(buffer, (ascii) ? "%d" : "%5d", 
-		 (tmp = cw_game_info_lookup(gameiter->game, "attendance")) ? 
-		 cw_atoi(tmp) : 0);
+  char *tmp = cw_game_info_lookup(gameiter->game, "attendance");
+  return sprintf(buffer, (ascii) ? "%d" : "%5d",
+                 (tmp && strcmp(tmp, "") != 0) ?
+		         cw_atoi(tmp, "Warning: invalid value '%s' for info,attendance\n") : 0);
 }
 
 /* Field 19 */
@@ -449,10 +461,14 @@ DECLARE_FIELDFUNC(cwgame_pitches)
 /* Field 26 */
 DECLARE_FIELDFUNC(cwgame_temperature)
 {
-  char *tmp;
-  return sprintf(buffer, (ascii) ? "%d" : "%3d",
-		 (tmp = cw_game_info_lookup(gameiter->game, "temp")) ? 
-		 cw_atoi(tmp) : 0);
+  char *value = cw_game_info_lookup(gameiter->game, "temp");
+  if (!value || !strcmp(value, "") || !strcmp(value, "unknown")) {
+    return sprintf(buffer, (ascii) ? "%d" : "%3d", 0);
+  }
+  else {
+    return sprintf(buffer, (ascii) ? "%d" : "%3d",
+                   cw_atoi(value, "Warning: invalid value '%s' for info,temp\n"));
+  }
 }
 
 /* Field 27 */
@@ -472,10 +488,13 @@ DECLARE_FIELDFUNC(cwgame_wind_direction)
 /* Field 28 */
 DECLARE_FIELDFUNC(cwgame_wind_speed)
 {
-  char *tmp;
-  return sprintf(buffer, "%d", 
-		 (tmp = cw_game_info_lookup(gameiter->game, "windspeed")) ? 
-		 cw_atoi(tmp) : 0);
+  char *value = cw_game_info_lookup(gameiter->game, "windspeed");
+  if (!value || !strcmp(value, "") || !strcmp(value, "unknown")) {
+    return sprintf(buffer, "%d", 0);
+  }
+  else {
+    return sprintf(buffer, "%d", cw_atoi(value, "Warning: invalid value '%s' for info,windspeed\n"));
+  }
 }
 
 /* Field 29 */
@@ -520,10 +539,10 @@ DECLARE_FIELDFUNC(cwgame_sky)
 /* Field 32 */
 DECLARE_FIELDFUNC(cwgame_time_of_game)
 {
-  char *tmp;
-  return sprintf(buffer, (ascii) ? "%d" : "%3d",
-		 (tmp = cw_game_info_lookup(gameiter->game, "timeofgame")) ? 
-		 cw_atoi(tmp) : 0);
+  char *tmp = cw_game_info_lookup(gameiter->game, "timeofgame");
+  return sprintf(buffer, (ascii) ? "%d" : "%5d",
+                 (tmp && strcmp(tmp, "") != 0) ?
+                 cw_atoi(tmp, "Warning: invalid value '%s' for info,timeofgame\n") : 0);
 }
 
 /* Field 33 */
@@ -623,7 +642,7 @@ DECLARE_FIELDFUNC(cwgame_losing_pitcher)
 DECLARE_FIELDFUNC(cwgame_save)
 {
   char *tmp;
-  return sprintf(buffer, (ascii) ? "\"%s\"" : "%-8s",
+  return sprintf(buffer, (ascii) ? "\"%s\"" : "%-12s",
 		 (tmp = cw_game_info_lookup(gameiter->game, "save")) ?
 		 tmp : "");
 }
@@ -640,9 +659,9 @@ DECLARE_FIELDFUNC(cwgame_gwrbi)
 int
 cwgame_final_pitcher(char *buffer, CWGame *game, CWBoxscore *box, int team)
 {
-  return sprintf(buffer, (ascii) ? "\"%s\"" : "%-8s",
-		 (box->pitchers[team]->prev != NULL) ?
-		 box->pitchers[team]->player_id : "");
+  CWBoxPitcher *pitcher = box->pitchers[team];
+  char *player_id = (pitcher && pitcher->prev) ? pitcher->prev->player_id : "";
+  return sprintf(buffer, (ascii) ? "\"%s\"" : "%-8s", player_id);
 }
 
 /* Fields for starting lineups */
@@ -668,7 +687,14 @@ cwgame_starting_position(char *buffer, CWGame *game, int team, int slot)
   else {
     return sprintf(buffer, "0");
   }
-  return 0;
+}
+
+/* Field 84 */
+DECLARE_FIELDFUNC(cwgame_game_type)
+{
+  char *tmp = cw_game_info_lookup(gameiter->game, "gametype");
+  return sprintf(buffer, (ascii) ? "\"%s\"" : "%-12s",
+                 (tmp && strcmp(tmp, "") != 0) ? tmp : "regular");
 }
 
 static field_struct field_data[] = {
@@ -760,8 +786,61 @@ static field_struct field_data[] = {
   /* 82 */ { NULL, "AWAY_FINISH_PIT_ID", 
 	     "visiting finisher (NULL if complete game)" },
   /* 83 */ { NULL, "HOME_FINISH_PIT_ID", 
-	     "home finisher (NULL if complete game)" }
+	     "home finisher (NULL if complete game)" },
+  /* 84 */ { cwgame_game_type, "GAME_TYPE_TX", "game type"}
 };
+
+#define DECLARE_TABULATED_BATTER_FUNC(funcname, alignment, fieldname) \
+DECLARE_FIELDFUNC(funcname) \
+{ \
+  int slot, tot = 0; \
+  for (slot = 1; slot <= 9; slot++) { \
+    CWBoxPlayer *player = cw_box_get_starter(box, alignment, slot); \
+    while (player != NULL) { \
+      if (player->batting->fieldname < 0) { \
+         tot = -1; \
+ 	     break; \
+      } \
+      tot += player->batting->fieldname; \
+      player = player->next; \
+    } \
+  } \
+  return cwgame_print_integer_or_null(buffer, tot); \
+}
+
+#define DECLARE_TABULATED_PITCHER_FUNC(funcname, alignment, fieldname) \
+DECLARE_FIELDFUNC(funcname) \
+{ \
+  int tot = 0; \
+  CWBoxPitcher *pitcher = cw_box_get_starting_pitcher(box, alignment); \
+  while (pitcher != NULL) { \
+    tot += pitcher->pitching->fieldname; \
+    pitcher = pitcher->next; \
+  } \
+  return cwgame_print_integer_or_null(buffer, tot); \
+}
+
+
+#define DECLARE_TABULATED_FIELDER_FUNC(funcname, alignment, fieldname, frompos, topos) \
+DECLARE_FIELDFUNC(funcname) \
+{ \
+  int slot, pos, tot = 0; \
+  for (slot = 0; slot <= 9; slot++) { \
+    CWBoxPlayer *player = cw_box_get_starter(box, alignment, slot); \
+    while (player != NULL) { \
+      for (pos = frompos; pos <= topos; pos++) { \
+         if (player->fielding[pos] != NULL) { \
+            if (player->fielding[pos]->fieldname < 0) { \
+              return sprintf(buffer, "%d", -1); \
+            } \
+            tot += player->fielding[pos]->fieldname; \
+         } \
+      } \
+      player = player->next; \
+    } \
+  } \
+  return cwgame_print_integer_or_null(buffer, tot); \
+}
 
 /*************************************************************************
  * Implementation of "extended" fields
@@ -879,259 +958,49 @@ DECLARE_FIELDFUNC(cwgame_home_line)
 }
 
 /* Field 21 */
-DECLARE_FIELDFUNC(cwgame_visitors_ab)
-{
-  int slot, ab = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      ab += player->batting->ab;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", ab);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_ab, 0, ab)
 
 /* Field 23 */
-DECLARE_FIELDFUNC(cwgame_visitors_2b)
-{
-  int slot, b2 = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      b2 += player->batting->b2;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", b2);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_2b, 0, b2)
 
 /* Field 24 */
-DECLARE_FIELDFUNC(cwgame_visitors_3b)
-{
-  int slot, b3 = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      b3 += player->batting->b3;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", b3);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_3b, 0, b3)
 
 /* Field 25 */
-DECLARE_FIELDFUNC(cwgame_visitors_hr)
-{
-  int slot, hr = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      hr += player->batting->hr;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", hr);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_hr, 0, hr)
 
 /* Field 26 */
-DECLARE_FIELDFUNC(cwgame_visitors_bi)
-{
-  int slot, bi = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      bi += player->batting->bi;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", bi);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_bi, 0, bi)
 
 /* Field 27 */
-DECLARE_FIELDFUNC(cwgame_visitors_sh)
-{
-  int slot, sh = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      sh += player->batting->sh;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", sh);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_sh, 0, sh)
 
 /* Field 28 */
-DECLARE_FIELDFUNC(cwgame_visitors_sf)
-{
-  int slot, sf = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      sf += player->batting->sf;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", sf);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_sf, 0, sf)
 
 /* Field 29 */
-DECLARE_FIELDFUNC(cwgame_visitors_hp)
-{
-  int slot, hp = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      hp += player->batting->hp;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", hp);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_hp, 0, hp)
 
 /* Field 30 */
-DECLARE_FIELDFUNC(cwgame_visitors_bb)
-{
-  int slot, bb = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      bb += player->batting->bb;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", bb);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_bb, 0, bb)
 
 /* Field 31 */
-DECLARE_FIELDFUNC(cwgame_visitors_ibb)
-{
-  int slot, ibb = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      ibb += player->batting->ibb;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", ibb);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_ibb, 0, ibb)
 
 /* Field 32 */
-DECLARE_FIELDFUNC(cwgame_visitors_so)
-{
-  int slot, so = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      so += player->batting->so;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", so);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_so, 0, so)
 
 /* Field 33 */
-DECLARE_FIELDFUNC(cwgame_visitors_sb)
-{
-  int slot, sb = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      sb += player->batting->sb;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", sb);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_sb, 0, sb)
 
 /* Field 34 */
-DECLARE_FIELDFUNC(cwgame_visitors_cs)
-{
-  int slot, cs = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      cs += player->batting->cs;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", cs);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_cs, 0, cs)
 
 /* Field 35 */
-DECLARE_FIELDFUNC(cwgame_visitors_gdp)
-{
-  int slot, gdp = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      gdp += player->batting->gdp;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", gdp);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_gdp, 0, gdp)
 
 /* Field 36 */
-DECLARE_FIELDFUNC(cwgame_visitors_xi)
-{
-  int slot, xi = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      xi += player->batting->xi;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", xi);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_visitors_xi, 0, xi)
 
 /* Field 38 */
 DECLARE_FIELDFUNC(cwgame_visitors_pitchers)
@@ -1144,18 +1013,7 @@ DECLARE_FIELDFUNC(cwgame_visitors_pitchers)
 }
 
 /* Field 39 */
-DECLARE_FIELDFUNC(cwgame_visitors_er)
-{
-  CWBoxPitcher *pitcher = cw_box_get_starting_pitcher(box, 0);
-  int er = 0;
-
-  while (pitcher != NULL) {
-    er += pitcher->pitching->er;
-    pitcher = pitcher->next;
-  }
-  
-  return sprintf(buffer, "%d", er);
-}
+DECLARE_TABULATED_PITCHER_FUNC(cwgame_visitors_er, 0, er)
 
 /* Field 40 */
 DECLARE_FIELDFUNC(cwgame_visitors_ter)
@@ -1164,93 +1022,19 @@ DECLARE_FIELDFUNC(cwgame_visitors_ter)
 }
 
 /* Field 41 */
-DECLARE_FIELDFUNC(cwgame_visitors_wp)
-{
-  CWBoxPitcher *pitcher = cw_box_get_starting_pitcher(box, 0);
-  int wp = 0;
-
-  while (pitcher != NULL) {
-    wp += pitcher->pitching->wp;
-    pitcher = pitcher->next;
-  }
-  
-  return sprintf(buffer, "%d", wp);
-}
+DECLARE_TABULATED_PITCHER_FUNC(cwgame_visitors_wp, 0, wp)
 
 /* Field 42 */
-DECLARE_FIELDFUNC(cwgame_visitors_bk)
-{
-  CWBoxPitcher *pitcher = cw_box_get_starting_pitcher(box, 0);
-  int bk = 0;
-
-  while (pitcher != NULL) {
-    bk += pitcher->pitching->bk;
-    pitcher = pitcher->next;
-  }
-  
-  return sprintf(buffer, "%d", bk);
-}
+DECLARE_TABULATED_PITCHER_FUNC(cwgame_visitors_bk, 0, bk)
 
 /* Field 43 */
-DECLARE_FIELDFUNC(cwgame_visitors_po)
-{
-  int slot, pos, po = 0;
-
-  for (slot = 0; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      for (pos = 1; pos <= 9; pos++) {
-	if (player->fielding[pos] != NULL) {
-	  po += player->fielding[pos]->po;
-	}
-      }
-      player = player->next;
-    }
-  }
-
-  return sprintf(buffer, "%d", po);
-}
+DECLARE_TABULATED_FIELDER_FUNC(cwgame_visitors_po, 0, po, 1, 9)
 
 /* Field 44 */
-DECLARE_FIELDFUNC(cwgame_visitors_a)
-{
-  int slot, pos, a = 0;
-
-  for (slot = 0; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      for (pos = 1; pos <= 9; pos++) {
-	if (player->fielding[pos] != NULL) {
-	  a += player->fielding[pos]->a;
-	}
-      }
-      player = player->next;
-    }
-  }
-
-  return sprintf(buffer, "%d", a);
-}
+DECLARE_TABULATED_FIELDER_FUNC(cwgame_visitors_a, 0, a, 1, 9)
 
 /* Field 46 */
-DECLARE_FIELDFUNC(cwgame_visitors_pb)
-{
-  int slot, pb = 0;
-
-  for (slot = 0; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 0, slot);
-    
-    while (player != NULL) {
-      if (player->fielding[2] != NULL) {
-	pb += player->fielding[2]->pb;
-      }
-      player = player->next;
-    }
-  }
-
-  return sprintf(buffer, "%d", pb);
-}
+DECLARE_TABULATED_FIELDER_FUNC(cwgame_visitors_pb, 0, pb, 2, 2)
 
 /* Field 47 */
 DECLARE_FIELDFUNC(cwgame_visitors_dp)
@@ -1265,259 +1049,49 @@ DECLARE_FIELDFUNC(cwgame_visitors_tp)
 }
 
 /* Field 49 */
-DECLARE_FIELDFUNC(cwgame_home_ab)
-{
-  int slot, ab = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      ab += player->batting->ab;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", ab);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_ab, 1, ab)
 
 /* Field 51 */
-DECLARE_FIELDFUNC(cwgame_home_2b)
-{
-  int slot, b2 = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      b2 += player->batting->b2;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", b2);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_2b, 1, b2)
 
 /* Field 52 */
-DECLARE_FIELDFUNC(cwgame_home_3b)
-{
-  int slot, b3 = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      b3 += player->batting->b3;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", b3);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_3b, 1, b3)
 
 /* Field 53 */
-DECLARE_FIELDFUNC(cwgame_home_hr)
-{
-  int slot, hr = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      hr += player->batting->hr;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", hr);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_hr, 1, hr)
 
 /* Field 54 */
-DECLARE_FIELDFUNC(cwgame_home_bi)
-{
-  int slot, bi = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      bi += player->batting->bi;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", bi);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_bi, 1, bi)
 
 /* Field 55 */
-DECLARE_FIELDFUNC(cwgame_home_sh)
-{
-  int slot, sh = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      sh += player->batting->sh;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", sh);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_sh, 1, sh)
 
 /* Field 56 */
-DECLARE_FIELDFUNC(cwgame_home_sf)
-{
-  int slot, sf = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      sf += player->batting->sf;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", sf);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_sf, 1, sf)
 
 /* Field 57 */
-DECLARE_FIELDFUNC(cwgame_home_hp)
-{
-  int slot, hp = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      hp += player->batting->hp;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", hp);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_hp, 1, hp)
 
 /* Field 58 */
-DECLARE_FIELDFUNC(cwgame_home_bb)
-{
-  int slot, bb = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      bb += player->batting->bb;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", bb);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_bb, 1, bb)
 
 /* Field 59 */
-DECLARE_FIELDFUNC(cwgame_home_ibb)
-{
-  int slot, ibb = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      ibb += player->batting->ibb;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", ibb);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_ibb, 1, ibb)
 
 /* Field 60 */
-DECLARE_FIELDFUNC(cwgame_home_so)
-{
-  int slot, so = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      so += player->batting->so;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", so);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_so, 1, so)
 
 /* Field 61 */
-DECLARE_FIELDFUNC(cwgame_home_sb)
-{
-  int slot, sb = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      sb += player->batting->sb;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", sb);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_sb, 1, sb)
 
 /* Field 62 */
-DECLARE_FIELDFUNC(cwgame_home_cs)
-{
-  int slot, cs = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      cs += player->batting->cs;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", cs);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_cs, 1, cs)
 
 /* Field 63 */
-DECLARE_FIELDFUNC(cwgame_home_gdp)
-{
-  int slot, gdp = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      gdp += player->batting->gdp;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", gdp);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_gdp, 1, gdp)
 
 /* Field 64 */
-DECLARE_FIELDFUNC(cwgame_home_xi)
-{
-  int slot, xi = 0;
-
-  for (slot = 1; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      xi += player->batting->xi;
-      player = player->next;
-    }
-  }
-  
-  return sprintf(buffer, "%d", xi);
-}
+DECLARE_TABULATED_BATTER_FUNC(cwgame_home_xi, 1, xi)
 
 /* Field 66 */
 DECLARE_FIELDFUNC(cwgame_home_pitchers)
@@ -1530,18 +1104,7 @@ DECLARE_FIELDFUNC(cwgame_home_pitchers)
 }
 
 /* Field 67 */
-DECLARE_FIELDFUNC(cwgame_home_er)
-{
-  CWBoxPitcher *pitcher = cw_box_get_starting_pitcher(box, 1);
-  int er = 0;
-
-  while (pitcher != NULL) {
-    er += pitcher->pitching->er;
-    pitcher = pitcher->next;
-  }
-  
-  return sprintf(buffer, "%d", er);
-}
+DECLARE_TABULATED_PITCHER_FUNC(cwgame_home_er, 1, er)
 
 /* Field 68 */
 DECLARE_FIELDFUNC(cwgame_home_ter)
@@ -1550,93 +1113,19 @@ DECLARE_FIELDFUNC(cwgame_home_ter)
 }
 
 /* Field 69 */
-DECLARE_FIELDFUNC(cwgame_home_wp)
-{
-  CWBoxPitcher *pitcher = cw_box_get_starting_pitcher(box, 1);
-  int wp = 0;
-
-  while (pitcher != NULL) {
-    wp += pitcher->pitching->wp;
-    pitcher = pitcher->next;
-  }
-  
-  return sprintf(buffer, "%d", wp);
-}
+DECLARE_TABULATED_PITCHER_FUNC(cwgame_home_wp, 1, wp)
 
 /* Field 70 */
-DECLARE_FIELDFUNC(cwgame_home_bk)
-{
-  CWBoxPitcher *pitcher = cw_box_get_starting_pitcher(box, 1);
-  int bk = 0;
-
-  while (pitcher != NULL) {
-    bk += pitcher->pitching->bk;
-    pitcher = pitcher->next;
-  }
-  
-  return sprintf(buffer, "%d", bk);
-}
+DECLARE_TABULATED_PITCHER_FUNC(cwgame_home_bk, 1, bk)
 
 /* Field 71 */
-DECLARE_FIELDFUNC(cwgame_home_po)
-{
-  int slot, pos, po = 0;
-
-  for (slot = 0; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      for (pos = 1; pos <= 9; pos++) {
-	if (player->fielding[pos] != NULL) {
-	  po += player->fielding[pos]->po;
-	}
-      }
-      player = player->next;
-    }
-  }
-
-  return sprintf(buffer, "%d", po);
-}
+DECLARE_TABULATED_FIELDER_FUNC(cwgame_home_po, 1, po, 1, 9)
 
 /* Field 72 */
-DECLARE_FIELDFUNC(cwgame_home_a)
-{
-  int slot, pos, a = 0;
-
-  for (slot = 0; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      for (pos = 1; pos <= 9; pos++) {
-	if (player->fielding[pos] != NULL) {
-	  a += player->fielding[pos]->a;
-	}
-      }
-      player = player->next;
-    }
-  }
-
-  return sprintf(buffer, "%d", a);
-}
+DECLARE_TABULATED_FIELDER_FUNC(cwgame_home_a, 1, a, 1, 9)
 
 /* Field 74 */
-DECLARE_FIELDFUNC(cwgame_home_pb)
-{
-  int slot, pb = 0;
-
-  for (slot = 0; slot <= 9; slot++) {
-    CWBoxPlayer *player = cw_box_get_starter(box, 1, slot);
-    
-    while (player != NULL) {
-      if (player->fielding[2] != NULL) {
-	pb += player->fielding[2]->pb;
-      }
-      player = player->next;
-    }
-  }
-
-  return sprintf(buffer, "%d", pb);
-}
+DECLARE_TABULATED_FIELDER_FUNC(cwgame_home_pb, 1, pb, 2, 2)
 
 /* Field 75 */
 DECLARE_FIELDFUNC(cwgame_home_dp)
@@ -1714,7 +1203,7 @@ DECLARE_FIELDFUNC(cwgame_home_manager_name)
 DECLARE_FIELDFUNC(cwgame_winning_pitcher_name)
 {
   char *tmp = cw_game_info_lookup(gameiter->game, "wp");
-  if (tmp && strcmp(tmp, "")) {
+  if (tmp && strcmp(tmp, "") != 0) {
     return cwgame_find_player_name(gameiter->game, buffer, tmp, visitors, home);
   }
   else {
@@ -1726,7 +1215,7 @@ DECLARE_FIELDFUNC(cwgame_winning_pitcher_name)
 DECLARE_FIELDFUNC(cwgame_losing_pitcher_name)
 {
   char *tmp = cw_game_info_lookup(gameiter->game, "lp");
-  if (tmp && strcmp(tmp, "")) {
+  if (tmp && strcmp(tmp, "") != 0) {
     return cwgame_find_player_name(gameiter->game, buffer, tmp, visitors, home);
   }
   else {
@@ -1738,7 +1227,7 @@ DECLARE_FIELDFUNC(cwgame_losing_pitcher_name)
 DECLARE_FIELDFUNC(cwgame_save_pitcher_name)
 {
   char *tmp = cw_game_info_lookup(gameiter->game, "save");
-  if (tmp && strcmp(tmp, "")) {
+  if (tmp && strcmp(tmp, "") != 0) {
     return cwgame_find_player_name(gameiter->game, buffer, tmp, visitors, home);
   }
   else {
@@ -1757,7 +1246,7 @@ DECLARE_FIELDFUNC(cwgame_goahead_rbi_id)
 DECLARE_FIELDFUNC(cwgame_goahead_rbi_name)
 {
   char *tmp = gameiter->state->go_ahead_rbi;
-  if (tmp && strcmp(tmp, "")) {
+  if (tmp && strcmp(tmp, "") != 0) {
     return cwgame_find_player_name(gameiter->game, buffer, tmp, visitors, home);
   }
   else {
@@ -1765,220 +1254,109 @@ DECLARE_FIELDFUNC(cwgame_goahead_rbi_name)
   }
 }
 
-DECLARE_FIELDFUNC(cwgame_visitors_batter1_name)
+int cwgame_find_lineup_name(CWGame *game, char *buffer,
+                            int alignment, int slot,
+                            CWRoster *visitors, CWRoster *home)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 0, 1);
+  CWAppearance *starter = cw_game_starter_find(game, alignment, slot);
   if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
+    return cwgame_find_player_name(game, buffer, starter->player_id,
+                                   visitors, home);
   }
   else {
-    return sprintf(buffer, "(null)"); 
+    return sprintf(buffer, "(null)");
   }
+
+}
+
+DECLARE_FIELDFUNC(cwgame_visitors_batter1_name)
+{
+  return cwgame_find_lineup_name(gameiter->game, buffer, 0, 1, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_visitors_batter2_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 0, 2);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 0, 2, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_visitors_batter3_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 0, 3);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 0, 3, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_visitors_batter4_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 0, 4);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 0, 4, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_visitors_batter5_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 0, 5);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 0, 5, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_visitors_batter6_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 0, 6);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 0, 6, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_visitors_batter7_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 0, 7);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 0, 7, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_visitors_batter8_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 0, 8);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 0, 8, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_visitors_batter9_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 0, 9);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 0, 9, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_home_batter1_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 1, 1);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 1, 1, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_home_batter2_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 1, 2);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 1, 2, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_home_batter3_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 1, 3);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 1, 3, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_home_batter4_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 1, 4);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 1, 4, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_home_batter5_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 1, 5);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 1, 5, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_home_batter6_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 1, 6);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 1, 6, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_home_batter7_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 1, 7);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 1, 7, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_home_batter8_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 1, 8);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 1, 8, visitors, home);
 }
 
 DECLARE_FIELDFUNC(cwgame_home_batter9_name)
 {
-  CWAppearance *starter = cw_game_starter_find(gameiter->game, 1, 9);
-  if (starter) {
-    return cwgame_find_player_name(gameiter->game, buffer, starter->player_id,
-				   visitors, home);
-  }
-  else {
-    return sprintf(buffer, "(null)"); 
-  }
+  return cwgame_find_lineup_name(gameiter->game, buffer, 1, 9, visitors, home);
 }
 
 /* Field 159 */
@@ -1998,6 +1376,23 @@ DECLARE_FIELDFUNC(cwgame_acquisition_info)
 {
   return sprintf(buffer, "%s", "");
 }
+
+DECLARE_FIELDFUNC(cwgame_scheduled_innings)
+{
+  char *tmp;
+  return sprintf(buffer, "%s",
+		 (tmp = cw_game_info_lookup(gameiter->game, "innings")) ?
+		 tmp : "9");
+}
+
+DECLARE_FIELDFUNC(cwgame_tiebreaker)
+{
+  char *tmp;
+  return sprintf(buffer, "\"%s\"",
+		 (tmp = cw_game_info_lookup(gameiter->game, "tiebreaker")) ?
+		 tmp : "");
+}
+
 
 static field_struct ext_field_data[] = {
   { cwgame_visitors_league, "AWAY_TEAM_LEAGUE_ID", "visiting team league" },
@@ -2094,7 +1489,9 @@ static field_struct ext_field_data[] = {
   { cwgame_home_batter8_name, "HOME_LINEUP8_BAT_NAME_TX", "home batter 8 name" },
   { cwgame_home_batter9_name, "HOME_LINEUP9_BAT_NAME_TX", "home batter 9 name" },
   { cwgame_additional_info, "ADD_INFO_TX", "additional information" },
-  { cwgame_acquisition_info, "ACQ_INFO_TX", "acquisition information" }
+  { cwgame_acquisition_info, "ACQ_INFO_TX", "acquisition information" },
+  { cwgame_scheduled_innings, "SCHED_INN_CT", "scheduled length of game in innings " },
+  { cwgame_tiebreaker, "TIEBREAK_CD", "tiebreaker rule type in use" }
 };
 
 void cwgame_process_game(CWGame *game, CWRoster *visitors, CWRoster *home)
@@ -2153,7 +1550,19 @@ void cwgame_process_game(CWGame *game, CWRoster *visitors, CWRoster *home)
     }
     t++;
   }
-
+  
+  for (i = 84; i <= max_field; i++) {
+    if (fields[i]) {
+      if (ascii && comma) {
+	*(buf++) = ',';
+      }
+      else {
+	comma = 1;
+      }
+      buf += (*field_data[i].f)(buf, gameiter, box, visitors, home);
+    }
+  }
+    
   for (i = 0; i <= max_ext_field; i++) {
     if (ext_fields[i]) {
       if (ascii && comma) {
@@ -2238,7 +1647,7 @@ cwgame_print_welcome_message(char *argv0)
   fprintf(stderr, 
 	  "\nChadwick expanded game descriptor, version " VERSION);
   fprintf(stderr, "\n  Type '%s -h' for help.\n", argv0);
-  fprintf(stderr, "Copyright (c) 2002-2020\nDr T L Turocy, Chadwick Baseball Bureau (ted.turocy@gmail.com)\n");
+  fprintf(stderr, "Copyright (c) 2002-2023\nDr T L Turocy, Chadwick Baseball Bureau (ted.turocy@gmail.com)\n");
   fprintf(stderr, "This is free software, "
 	  "subject to the terms of the GNU GPL license.\n\n");
 }
@@ -2300,7 +1709,6 @@ extern char year[5];
 extern char first_date[5];
 extern char last_date[5];
 extern char game_id[20];
-extern int ascii;
 extern int quiet;
 
 extern void

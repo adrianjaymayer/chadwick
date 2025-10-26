@@ -3,8 +3,8 @@
  * Copyright (c) 2002-2023, Dr T L Turocy (ted.turocy@gmail.com)
  *                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
  *
- * FILE: src/cwlib/chadwick.h
- * Top-level include file for Chadwick.
+ * FILE: src/cwlib/gameiter.c
+ * Implementation of routines to store game state
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,17 +21,18 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef CW_CHADWICK_H
-#define CW_CHADWICK_H
+/* This macro is a convenient shorthand for free()ing and NULLing a pointer
+ * if it's not currently NULL. */
+#define XFREE(var)    if (var) { free((var)); (var) = NULL; }
 
-#include "file.h"
-#include "game.h"
-#include "book.h"
-#include "roster.h"
-#include "league.h"
-#include "parse.h"
-#include "gameiter.h"
-#include "box.h"
-
-#endif   /* CW_CHADWICK_H */
+/* This macro is a convenient shortland for malloc()ing and copying a
+ * pointer to a string, if it's not currently NULL */
+#define XCOPY(dest, src) \
+  if (src) {  \
+    dest = (char *) malloc(sizeof(char) * (strlen(src) + 1)); \
+    strcpy(dest, src); \
+  } \
+  else { \
+    dest = NULL; \
+  }
 

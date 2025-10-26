@@ -1,6 +1,6 @@
 /*
  * This file is part of Chadwick
- * Copyright (c) 2002-2020, Dr T L Turocy (ted.turocy@gmail.com)
+ * Copyright (c) 2002-2023, Dr T L Turocy (ted.turocy@gmail.com)
  *                          Chadwick Baseball Bureau (http://www.chadwick-bureau.com)
  *                          Sean Forman, Sports Reference LLC
  *                          XML Team Solutions, Inc.
@@ -62,7 +62,7 @@ cwbox_print_welcome_message(char *argv0)
 {
   fprintf(stderr, "\nChadwick boxscore generator, version " VERSION);
   fprintf(stderr, "\n  Type '%s -h' for help.\n", argv0);
-  fprintf(stderr, "Copyright (c) 2002-2020\nDr T L Turocy, Chadwick Baseball Bureau (ted.turocy@gmail.com)\n");
+  fprintf(stderr, "Copyright (c) 2002-2023\nDr T L Turocy, Chadwick Baseball Bureau (ted.turocy@gmail.com)\n");
   fprintf(stderr, "This is free software, "
 	  "subject to the terms of the GNU GPL license.\n\n");
 }
@@ -155,24 +155,24 @@ int (*cwtools_parse_command_line)(int, char *argv[]) = cwbox_parse_command_line;
 void
 cwbox_print_header(CWGame *game, CWRoster *visitors, CWRoster *home)
 {
-  int month, day, year;
+  int g_month, g_day, g_year;
   sscanf(cw_game_info_lookup(game, "date"), "%d/%d/%d",
-	 &year, &month, &day);
+         &g_year, &g_month, &g_day);
   if (!strcmp(cw_game_info_lookup(game, "number"), "0")) {
     printf("     Game of %d/%d/%d -- %s at %s",
-	   month, day, year, 
+           g_month, g_day, g_year,
 	   (visitors) ? visitors->city : cw_game_info_lookup(game, "visteam"),
 	   (home) ? home->city : cw_game_info_lookup(game, "hometeam"));
   }
   else {
     printf("     Game of %d/%d/%d, game %s -- %s at %s",
-	   month, day, year, cw_game_info_lookup(game, "number"),
+           g_month, g_day, g_year, cw_game_info_lookup(game, "number"),
 	   (visitors) ? visitors->city : cw_game_info_lookup(game, "visteam"),
 	   (home) ? home->city : cw_game_info_lookup(game, "hometeam"));
   }
   
   if (cw_game_info_lookup(game, "daynight")) {
-    if (!strcmp(cw_game_info_lookup(game, "daynight"), "day")) {
+    if (!strcmp(cw_game_info_lookup(game, "daynight"), "g_day")) {
       printf(" (D)\n");
     }
     else if (!strcmp(cw_game_info_lookup(game, "daynight"), "night")) {
@@ -877,7 +877,7 @@ extern void cwbox_print_sportsml(XMLDoc *doc,
 
 void cwbox_process_game(CWGame *game, CWRoster *visitors, CWRoster *home)
 {
-  CWBoxscore *boxscore = 0;
+  CWBoxscore *boxscore;
 
   if (!cw_game_lint(game)) {
     fprintf(stderr, "WARNING: Sanity check fails for game %s, skipping...\n",
